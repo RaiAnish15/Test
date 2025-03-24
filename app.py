@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import os
 
-st.title("Meteorological Plot Dashboard")
+st.title("Dashboard")
 
 # Read all PNG files from the current directory
 png_files = [f for f in os.listdir() if f.endswith('.png')]
