@@ -1,5 +1,10 @@
+# Importing the necessary libraries
 import streamlit as st
-from PIL import Image
+import pandas as pd
+import plotly.graph_objects as go
+import numpy as np
+from arch import arch_model
+import os
 
 st.title("Meteorological Plot Viewer")
 
