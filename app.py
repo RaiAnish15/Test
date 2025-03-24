@@ -1,25 +1,19 @@
-# Importing the necessary libraries
 import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
-from arch import arch_model
-import os
+from PIL import Image
 
-st.title("Meteorological Plot Viewer")
-
+st.title("Meteorological Plot Dashboard")
 st.write(
     """
     **Instructions:**
-    1. Upload your PNG files. Each file should be named in the format:  
+    1. Upload your PNG files. Each file must be named in the format:  
        `State_District_Block_var.png`  
-       e.g., `Haryana_Sonepat_Gohana_Tmax.png`
-    2. Use the dropdowns below to select the State, then the District-Block, and finally the meteorological variable.
+       (e.g., `Haryana_Sonepat_Gohana_Tmax.png`)
+    2. Use the dropdowns to first select the State, then the District-Block combination, and finally the meteorological variable.
     3. The corresponding plot image will be displayed.
     """
 )
 
-# File uploader: allow multiple PNG files
+# File uploader: allow multiple PNG files.
 uploaded_files = st.file_uploader("Upload your plot images", type=["png"], accept_multiple_files=True)
 
 # Dictionary to store files in the format: { state: { "District-Block": { var: file } } }
@@ -36,7 +30,7 @@ if uploaded_files:
         state, district, block, var = parts
         # Create a combined key for district and block
         district_block = f"{district}-{block}"
-        # Organize files in nested dictionary structure
+        # Organize files in a nested dictionary structure
         file_dict.setdefault(state, {}).setdefault(district_block, {})[var] = file
 
     # --- Dropdown for State ---
