@@ -3,8 +3,8 @@ from PIL import Image
 import os
 
 # Set page configuration
-st.set_page_config(page_title="Dashboard", layout="wide")
-st.title("Dashboard")
+st.set_page_config(page_title="SmartRice: Basmati Intelligence Portal", layout="wide")
+st.title("SmartRice: Basmati Intelligence Portal")
 
 # Create a horizontal radio button at the top to act as tabs
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
