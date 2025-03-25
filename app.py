@@ -40,10 +40,10 @@ else:
             variable_selected = st.sidebar.selectbox("Select Meteorological Variable", ["select"] + variable_options)
 
             if variable_selected != "select":
-                # Retrieve and display the corresponding image
+                # Retrieve and display the corresponding image without caption
                 selected_filename = file_dict[state_selected][district_block_selected].get(variable_selected)
                 if selected_filename:
                     image = Image.open(selected_filename)
-                    st.image(image, caption=selected_filename)
+                    st.image(image, use_column_width=True)
                 else:
                     st.error("No image found for the selected options.")
