@@ -44,6 +44,6 @@ else:
                 selected_filename = file_dict[state_selected][district_block_selected].get(variable_selected)
                 if selected_filename:
                     image = Image.open(selected_filename)
-                    st.image(image, use_column_width=True)
+                    st.image(image, use_container_width=True)
                 else:
                     st.error("No image found for the selected options.")
