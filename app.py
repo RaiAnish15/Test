@@ -37,15 +37,29 @@ if section == "Meteorological Variable":
             district_block_options = sorted(list(file_dict[state_selected].keys()))
             district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
             if district_block_selected != "select":
-                variable_options = sorted(list(file_dict[state_selected][district_block_selected].keys()))
-                variable_selected = st.sidebar.selectbox("Select Meteorological Variable", ["select"] + variable_options)
+                # Include an "All" option along with individual meteorological variables.
+                vars_list = sorted(list(file_dict[state_selected][district_block_selected].keys()))
+                variable_options = ["select", "All"] + vars_list
+                variable_selected = st.sidebar.selectbox("Select Meteorological Variable", variable_options)
                 if variable_selected != "select":
-                    selected_filename = file_dict[state_selected][district_block_selected].get(variable_selected)
-                    if selected_filename:
-                        image = Image.open(selected_filename)
-                        st.image(image, use_container_width=True)
+                    if variable_selected == "All":
+                        # Display all relevant images
+                        for var, filename in file_dict[state_selected][district_block_selected].items():
+                            try:
+                                image = Image.open(filename)
+                                st.image(image, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error opening {filename}: {e}")
                     else:
-                        st.error("No image found for the selected options.")
+                        selected_filename = file_dict[state_selected][district_block_selected].get(variable_selected)
+                        if selected_filename:
+                            try:
+                                image = Image.open(selected_filename)
+                                st.image(image, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error opening {selected_filename}: {e}")
+                        else:
+                            st.error("No image found for the selected options.")
 
 elif section == "Market":
     # Market Section: Example dropdowns for Market-specific options.
