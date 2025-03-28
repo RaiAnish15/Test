@@ -2,11 +2,12 @@ import streamlit as st
 from PIL import Image
 import zipfile
 import io
+import os
 
 st.set_page_config(page_title="Smart Agri: Basmati Intelligence Portal", layout="wide")
 st.title("Smart Agri: Basmati Intelligence Portal")
 
-# Top-level section selection (only Meteorological Variable is implemented here)
+# Top-level section selection
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
 
 # -----------------------------
@@ -14,41 +15,45 @@ section = st.radio("Select Section", options=["Meteorological Variable", "Market
 # -----------------------------
 def build_file_dict_from_zip(zip_bytes):
     """
-    Reads PNG files from the ZIP (with filenames in the format):
-      State_District_Block_Var.png
-      or
-      State_District_Block_Var_sinceYYYY.png
-
-    Returns a nested dict:
+    Reads PNG files from the ZIP and parses their filenames into a nested dict:
       { state: { "District-Block": { var_label: internal_zip_filename } } }
+    
+    Accepts filenames with at least 4 underscore-separated parts:
+       State_District_Block_Var[(_sinceYYYY)].png
+    For example:
+       Punjab_Gurdaspur_Batala_Rain_since2000.png  → "Rain since 2000"
+       Punjab_Tarn Taran_Tarn Taran_Rain_since1990.png → "Rain since 1990"
     """
     file_dict = {}
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         for name in z.namelist():
             if not name.endswith(".png"):
                 continue
-            # Use only the file name (ignore folder structure in ZIP, if any)
+            # Get only the filename (ignore any folder structure in the ZIP)
             filename = name.split("/")[-1]
             parts = filename.split(".")[0].split("_")
+            # Accept if we have at least 4 parts
             if len(parts) < 4:
-                st.warning(f"Filename '{filename}' does not match the required format. Skipping.")
+                st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
                 continue
+
             state = parts[0]
             district = parts[1]
             block = parts[2]
+            # Join all parts after the first three as the variable part.
             var_parts = parts[3:]
-            if len(var_parts) == 1:
-                var_label = var_parts[0]
-            elif len(var_parts) == 2:
-                var = var_parts[0]
-                since_part = var_parts[1]
-                if since_part.startswith("since"):
-                    year_str = since_part.replace("since", "").strip()
-                    var_label = f"{var} since {year_str}"
+            # If any part starts with "since", assume the last part is the cutoff info.
+            if any(p.startswith("since") for p in var_parts):
+                # If the last element starts with "since", treat it as the year info.
+                if var_parts[-1].startswith("since"):
+                    var_name = "_".join(var_parts[:-1])
+                    year_str = var_parts[-1].replace("since", "").strip()
+                    var_label = f"{var_name} since {year_str}"
                 else:
                     var_label = "_".join(var_parts)
             else:
                 var_label = "_".join(var_parts)
+            
             district_block = f"{district}-{block}"
             file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = name
     return file_dict
