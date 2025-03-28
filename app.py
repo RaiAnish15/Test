@@ -9,7 +9,7 @@ st.title("Smart Agri: Basmati Intelligence Portal")
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
 
 # -----------------------------
-# Helper function to build dict from local PNG files in a specific folder
+# Helper function to build dict from PNG files in a specific folder
 # -----------------------------
 def build_file_dict_from_folder(folder):
     """
@@ -66,8 +66,8 @@ def build_file_dict_from_folder(folder):
 # Meteorological Variable Section using local folder files
 # -----------------------------
 if section == "Meteorological Variable":
-    # Set folder name; ensure it matches your local folder name exactly.
-    folder = "Meterological Variables"
+    # Set folder name (make sure it matches exactly)
+    folder = "Meteorological Variables"
     st.sidebar.header("Meteorological Variable Options")
     file_dict = build_file_dict_from_folder(folder)
     
