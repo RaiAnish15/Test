@@ -5,11 +5,11 @@ import os
 st.set_page_config(page_title="Smart Agri: Basmati Intelligence Portal", layout="wide")
 st.title("Smart Agri: Basmati Intelligence Portal")
 
-# Top-level section selection
-section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
+# Top-level section selection including "Quality"
+section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If", "Quality"], horizontal=True)
 
 # -----------------------------
-# Helper function to build dict from PNG files in a specific folder
+# Helper: Build file dictionary from PNG files (for Meteorological Variable)
 # -----------------------------
 def build_file_dict_from_folder(folder):
     """
@@ -34,7 +34,6 @@ def build_file_dict_from_folder(folder):
         return None
     
     for filename in png_files:
-        # Full path for image file
         file_path = os.path.join(folder, filename)
         parts = filename.split(".")[0].split("_")
         if len(parts) < 4:
@@ -45,7 +44,6 @@ def build_file_dict_from_folder(folder):
         district = parts[1]
         block = parts[2]
         var_parts = parts[3:]
-        # Format variable label; if the last part starts with "since", format it.
         if len(var_parts) >= 2 and var_parts[-1].startswith("since"):
             var_name = "_".join(var_parts[:-1])
             year_str = var_parts[-1].replace("since", "").strip()
@@ -53,7 +51,6 @@ def build_file_dict_from_folder(folder):
         else:
             var_label = "_".join(var_parts)
         
-        # Replace "Temp" with "Temperature" if it appears at the start
         if var_label.startswith("Temp"):
             var_label = var_label.replace("Temp", "Temperature", 1)
         
@@ -63,27 +60,64 @@ def build_file_dict_from_folder(folder):
     return file_dict
 
 # -----------------------------
-# Meteorological Variable Section using local folder files
+# Helper: Build file dictionary from JPG files (for Quality)
+# -----------------------------
+def build_quality_dict(folder):
+    """
+    Reads JPG files from the specified folder and parses their filenames into a nested dict:
+      { state: { "District-Block": { quality_param: file_path } } }
+    
+    Expected filename format:
+      State_District_Block_QualityParameter.jpg
+
+    For example:
+      Punjab_Gurdaspur_Batala_Humidity.jpg → quality parameter: "Humidity"
+    """
+    quality_dict = {}
+    if not os.path.exists(folder):
+        st.error(f"Folder '{folder}' not found.")
+        return None
+    
+    jpg_files = [f for f in os.listdir(folder) if f.lower().endswith(".jpg")]
+    if not jpg_files:
+        st.error(f"No JPG files found in the folder '{folder}'.")
+        return None
+    
+    for filename in jpg_files:
+        file_path = os.path.join(folder, filename)
+        parts = filename.split(".")[0].split("_")
+        if len(parts) < 4:
+            st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
+            continue
+        
+        state = parts[0]
+        district = parts[1]
+        block = parts[2]
+        quality_param = parts[3]  # Assuming only one quality parameter is given.
+        
+        district_block = f"{district}-{block}"
+        quality_dict.setdefault(state, {}).setdefault(district_block, {})[quality_param] = file_path
+
+    return quality_dict
+
+# -----------------------------
+# Meteorological Variable Section using local PNG files
 # -----------------------------
 if section == "Meteorological Variable":
-    # Set folder name (make sure it matches exactly)
-    folder = "Meteorological Variables"
     st.sidebar.header("Meteorological Variable Options")
+    folder = "Meteorological Variables"  # Folder containing PNG files for meteorological variables
     file_dict = build_file_dict_from_folder(folder)
     
     if file_dict:
-        # State dropdown
-        state_options = sorted(list(file_dict.keys()))
+        state_options = sorted(file_dict.keys())
         state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
         
         if state_selected != "select":
-            # District-Block dropdown
-            district_block_options = sorted(list(file_dict[state_selected].keys()))
+            district_block_options = sorted(file_dict[state_selected].keys())
             district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
             
             if district_block_selected != "select":
-                # Variable dropdown with an "All" option
-                vars_list = sorted(list(file_dict[state_selected][district_block_selected].keys()))
+                vars_list = sorted(file_dict[state_selected][district_block_selected].keys())
                 variable_options = ["select", "All"] + vars_list
                 variable_selected = st.sidebar.selectbox("Select Meteorological Variable", variable_options)
                 
@@ -105,6 +139,46 @@ if section == "Meteorological Variable":
                                 st.error(f"Error opening {file_path}: {e}")
                         else:
                             st.error("No image found for the selected options.")
+
+# -----------------------------
+# Quality Section using local JPG files
+# -----------------------------
+elif section == "Quality":
+    st.sidebar.header("Quality Options")
+    quality_folder = "Quality"  # Folder containing JPG files for quality images
+    quality_dict = build_quality_dict(quality_folder)
+    
+    if quality_dict:
+        state_options = sorted(quality_dict.keys())
+        state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
+        
+        if state_selected != "select":
+            district_block_options = sorted(quality_dict[state_selected].keys())
+            district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
+            
+            if district_block_selected != "select":
+                quality_params = sorted(quality_dict[state_selected][district_block_selected].keys())
+                quality_options = ["select", "All"] + quality_params
+                quality_selected = st.sidebar.selectbox("Select Quality Parameter", quality_options)
+                
+                if quality_selected != "select":
+                    if quality_selected == "All":
+                        for param, file_path in quality_dict[state_selected][district_block_selected].items():
+                            try:
+                                image = Image.open(file_path)
+                                st.image(image, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error opening {file_path}: {e}")
+                    else:
+                        file_path = quality_dict[state_selected][district_block_selected].get(quality_selected)
+                        if file_path:
+                            try:
+                                image = Image.open(file_path)
+                                st.image(image, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error opening {file_path}: {e}")
+                        else:
+                            st.error("No image found for the selected quality parameter.")
 
 # -----------------------------
 # Market Section (Placeholder)
