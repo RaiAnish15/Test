@@ -9,11 +9,11 @@ st.title("Smart Agri: Basmati Intelligence Portal")
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
 
 # -----------------------------
-# Helper function to build dict from local PNG files in the repo
+# Helper function to build dict from local PNG files in a specific folder
 # -----------------------------
-def build_file_dict_from_repo():
+def build_file_dict_from_folder(folder):
     """
-    Reads PNG files from the current working directory and parses their filenames into a nested dict:
+    Reads PNG files from the specified folder and parses their filenames into a nested dict:
       { state: { "District-Block": { var_label: file_path } } }
     
     Expected filename formats:
@@ -24,13 +24,18 @@ def build_file_dict_from_repo():
       Haryana_Sirsa_Sirsa_Temp_since2010.png → variable label: "Temperature since 2010"
     """
     file_dict = {}
-    # List all PNG files in the current working directory.
-    png_files = [f for f in os.listdir(".") if f.endswith(".png")]
+    if not os.path.exists(folder):
+        st.error(f"Folder '{folder}' not found.")
+        return None
+    
+    png_files = [f for f in os.listdir(folder) if f.endswith(".png")]
     if not png_files:
-        st.error("No PNG files found in the repository.")
+        st.error(f"No PNG files found in the folder '{folder}'.")
         return None
     
     for filename in png_files:
+        # Full path for image file
+        file_path = os.path.join(folder, filename)
         parts = filename.split(".")[0].split("_")
         if len(parts) < 4:
             st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
@@ -48,21 +53,23 @@ def build_file_dict_from_repo():
         else:
             var_label = "_".join(var_parts)
         
-        # Replace "Temp" with "Temperature" if it appears at the start of the variable label.
+        # Replace "Temp" with "Temperature" if it appears at the start
         if var_label.startswith("Temp"):
             var_label = var_label.replace("Temp", "Temperature", 1)
         
         district_block = f"{district}-{block}"
-        file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = filename
+        file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = file_path
 
     return file_dict
 
 # -----------------------------
-# Meteorological Variable Section using local PNG files
+# Meteorological Variable Section using local folder files
 # -----------------------------
 if section == "Meteorological Variable":
+    # Set folder name; ensure it matches your local folder name exactly.
+    folder = "Meterological Variables"
     st.sidebar.header("Meteorological Variable Options")
-    file_dict = build_file_dict_from_repo()
+    file_dict = build_file_dict_from_folder(folder)
     
     if file_dict:
         # State dropdown
