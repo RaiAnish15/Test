@@ -141,11 +141,11 @@ if section == "Meteorological Variable":
                             st.error("No image found for the selected options.")
 
 # -----------------------------
-# Quality Section using local JPG files
+# Quality Section using local PNG files
 # -----------------------------
 elif section == "Quality":
     st.sidebar.header("Quality Options")
-    quality_folder = "Quality"  # Folder containing JPG files for quality images
+    quality_folder = "Quality"  # Folder containing PNG files for quality images
     quality_dict = build_quality_dict(quality_folder)
     
     if quality_dict:
