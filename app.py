@@ -32,7 +32,6 @@ def build_file_dict_from_zip(zip_bytes):
             # Get only the filename (ignore any folder structure in the ZIP)
             filename = name.split("/")[-1]
             parts = filename.split(".")[0].split("_")
-            # Accept if we have at least 4 parts
             if len(parts) < 4:
                 st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
                 continue
@@ -40,17 +39,12 @@ def build_file_dict_from_zip(zip_bytes):
             state = parts[0]
             district = parts[1]
             block = parts[2]
-            # Join all parts after the first three as the variable part.
             var_parts = parts[3:]
             # If any part starts with "since", assume the last part is the cutoff info.
-            if any(p.startswith("since") for p in var_parts):
-                # If the last element starts with "since", treat it as the year info.
-                if var_parts[-1].startswith("since"):
-                    var_name = "_".join(var_parts[:-1])
-                    year_str = var_parts[-1].replace("since", "").strip()
-                    var_label = f"{var_name} since {year_str}"
-                else:
-                    var_label = "_".join(var_parts)
+            if len(var_parts) >= 2 and var_parts[-1].startswith("since"):
+                var_name = "_".join(var_parts[:-1])
+                year_str = var_parts[-1].replace("since", "").strip()
+                var_label = f"{var_name} since {year_str}"
             else:
                 var_label = "_".join(var_parts)
             
@@ -59,21 +53,32 @@ def build_file_dict_from_zip(zip_bytes):
     return file_dict
 
 # -----------------------------
-# Meteorological Variable Section using ZIP upload
+# Meteorological Variable Section using ZIP upload or default file
 # -----------------------------
 if section == "Meteorological Variable":
-    st.sidebar.header("Upload Meteorological Variables ZIP file")
-    uploaded_zip = st.sidebar.file_uploader("Upload ZIP", type="zip")
+    st.sidebar.header("Meteorological Variable Options")
     
-    if uploaded_zip is not None:
+    uploaded_zip = st.sidebar.file_uploader("Upload Meteorological Variables ZIP file", type="zip")
+    
+    # If no file is uploaded, try to load default ZIP file from the current directory.
+    if uploaded_zip is None:
+        default_zip = "Meteorological_Variables.zip"
+        if os.path.exists(default_zip):
+            with open(default_zip, "rb") as f:
+                zip_bytes = f.read()
+            st.sidebar.info(f"Using default ZIP file: {default_zip}")
+        else:
+            st.info("Please upload the Meteorological Variables ZIP file.")
+            zip_bytes = None
+    else:
         zip_bytes = uploaded_zip.read()
+    
+    if zip_bytes is not None:
         file_dict = build_file_dict_from_zip(zip_bytes)
         
         if not file_dict:
             st.error("No valid PNG files found in the ZIP file.")
         else:
-            st.sidebar.header("Meteorological Variable Options")
-            
             # State dropdown
             state_options = sorted(list(file_dict.keys()))
             state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
@@ -110,8 +115,6 @@ if section == "Meteorological Variable":
                                         st.error(f"Error opening {internal_name}: {e}")
                                 else:
                                     st.error("No image found for the selected options.")
-    else:
-        st.info("Please upload the Meteorological Variables ZIP file.")
 
 # -----------------------------
 # Market and What If Sections (Placeholder)
