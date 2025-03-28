@@ -60,30 +60,30 @@ def build_file_dict_from_folder(folder):
     return file_dict
 
 # -----------------------------
-# Helper: Build file dictionary from JPG files (for Quality)
+# Helper: Build file dictionary from PNG files (for Quality)
 # -----------------------------
 def build_quality_dict(folder):
     """
-    Reads JPG files from the specified folder and parses their filenames into a nested dict:
+    Reads png files from the specified folder and parses their filenames into a nested dict:
       { state: { "District-Block": { quality_param: file_path } } }
     
     Expected filename format:
-      State_District_Block_QualityParameter.jpg
+      State_District_Block_QualityParameter.png
 
     For example:
-      Punjab_Gurdaspur_Batala_Humidity.jpg → quality parameter: "Humidity"
+      Punjab_Gurdaspur_Batala_Humidity.png → quality parameter: "Humidity"
     """
     quality_dict = {}
     if not os.path.exists(folder):
         st.error(f"Folder '{folder}' not found.")
         return None
     
-    jpg_files = [f for f in os.listdir(folder) if f.lower().endswith(".jpg")]
-    if not jpg_files:
-        st.error(f"No JPG files found in the folder '{folder}'.")
+    png_files = [f for f in os.listdir(folder) if f.lower().endswith(".png")]
+    if not png_files:
+        st.error(f"No png files found in the folder '{folder}'.")
         return None
     
-    for filename in jpg_files:
+    for filename in png_files:
         file_path = os.path.join(folder, filename)
         parts = filename.split(".")[0].split("_")
         if len(parts) < 4:
