@@ -25,31 +25,35 @@ def build_file_dict_from_zip(zip_bytes):
        Punjab_Tarn Taran_Tarn Taran_Rain_since1990.png → "Rain since 1990"
     """
     file_dict = {}
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        for name in z.namelist():
-            if not name.endswith(".png"):
-                continue
-            # Get only the filename (ignore any folder structure in the ZIP)
-            filename = name.split("/")[-1]
-            parts = filename.split(".")[0].split("_")
-            if len(parts) < 4:
-                st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
-                continue
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            for name in z.namelist():
+                if not name.endswith(".png"):
+                    continue
+                # Get only the filename (ignore any folder structure in the ZIP)
+                filename = name.split("/")[-1]
+                parts = filename.split(".")[0].split("_")
+                if len(parts) < 4:
+                    st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
+                    continue
 
-            state = parts[0]
-            district = parts[1]
-            block = parts[2]
-            var_parts = parts[3:]
-            # If any part starts with "since", assume the last part is the cutoff info.
-            if len(var_parts) >= 2 and var_parts[-1].startswith("since"):
-                var_name = "_".join(var_parts[:-1])
-                year_str = var_parts[-1].replace("since", "").strip()
-                var_label = f"{var_name} since {year_str}"
-            else:
-                var_label = "_".join(var_parts)
-            
-            district_block = f"{district}-{block}"
-            file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = name
+                state = parts[0]
+                district = parts[1]
+                block = parts[2]
+                var_parts = parts[3:]
+                # If the last part starts with "since", format accordingly.
+                if len(var_parts) >= 2 and var_parts[-1].startswith("since"):
+                    var_name = "_".join(var_parts[:-1])
+                    year_str = var_parts[-1].replace("since", "").strip()
+                    var_label = f"{var_name} since {year_str}"
+                else:
+                    var_label = "_".join(var_parts)
+                
+                district_block = f"{district}-{block}"
+                file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = name
+    except zipfile.BadZipFile:
+        st.error("The uploaded file is not a valid ZIP archive. Please check your file and try again.")
+        return None
     return file_dict
 
 # -----------------------------
@@ -75,8 +79,9 @@ if section == "Meteorological Variable":
     
     if zip_bytes is not None:
         file_dict = build_file_dict_from_zip(zip_bytes)
-        
-        if not file_dict:
+        if file_dict is None:
+            st.error("Could not process the ZIP file.")
+        elif not file_dict:
             st.error("No valid PNG files found in the ZIP file.")
         else:
             # State dropdown
@@ -115,6 +120,8 @@ if section == "Meteorological Variable":
                                         st.error(f"Error opening {internal_name}: {e}")
                                 else:
                                     st.error("No image found for the selected options.")
+    else:
+        st.info("Please upload the Meteorological Variables ZIP file.")
 
 # -----------------------------
 # Market and What If Sections (Placeholder)
