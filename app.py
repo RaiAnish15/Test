@@ -105,7 +105,7 @@ def build_quality_dict(folder):
 # -----------------------------
 if section == "Meteorological Variable":
     st.sidebar.header("Meteorological Variable Options")
-    folder = "Meteorological Variables"  # Folder containing PNG files for meteorological variables
+    folder = "Meteorological Variables Monthly"  # Folder containing PNG files for meteorological variables
     file_dict = build_file_dict_from_folder(folder)
     
     if file_dict:
