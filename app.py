@@ -9,7 +9,7 @@ st.title("Smart Agri: Basmati Intelligence Portal")
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If"], horizontal=True)
 
 # -----------------------------
-# Helper function to build dict from PNG files in the repo (current directory)
+# Helper function to build dict from local PNG files in the repo
 # -----------------------------
 def build_file_dict_from_repo():
     """
@@ -20,8 +20,8 @@ def build_file_dict_from_repo():
       State_District_Block_Var.png  
       State_District_Block_Var_sinceYYYY.png
 
-    Example:
-      Haryana_Sonipat_Gohana_Rain_since1990.png  → "Rain since 1990"
+    For example:
+      Haryana_Sirsa_Sirsa_Temp_since2010.png → variable label: "Temperature since 2010"
     """
     file_dict = {}
     # List all PNG files in the current working directory.
@@ -31,7 +31,6 @@ def build_file_dict_from_repo():
         return None
     
     for filename in png_files:
-        # Remove extension and split by underscore
         parts = filename.split(".")[0].split("_")
         if len(parts) < 4:
             st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
@@ -41,13 +40,17 @@ def build_file_dict_from_repo():
         district = parts[1]
         block = parts[2]
         var_parts = parts[3:]
-        # Check if the last part starts with "since" to format the variable label.
+        # Format variable label; if the last part starts with "since", format it.
         if len(var_parts) >= 2 and var_parts[-1].startswith("since"):
             var_name = "_".join(var_parts[:-1])
             year_str = var_parts[-1].replace("since", "").strip()
             var_label = f"{var_name} since {year_str}"
         else:
             var_label = "_".join(var_parts)
+        
+        # Replace "Temp" with "Temperature" if it appears at the start of the variable label.
+        if var_label.startswith("Temp"):
+            var_label = var_label.replace("Temp", "Temperature", 1)
         
         district_block = f"{district}-{block}"
         file_dict.setdefault(state, {}).setdefault(district_block, {})[var_label] = filename
@@ -82,7 +85,7 @@ if section == "Meteorological Variable":
                         for var_label, file_path in file_dict[state_selected][district_block_selected].items():
                             try:
                                 image = Image.open(file_path)
-                                st.image(image, caption=file_path, use_container_width=True)
+                                st.image(image, use_container_width=True)
                             except Exception as e:
                                 st.error(f"Error opening {file_path}: {e}")
                     else:
@@ -90,22 +93,28 @@ if section == "Meteorological Variable":
                         if file_path:
                             try:
                                 image = Image.open(file_path)
-                                st.image(image, caption=file_path, use_container_width=True)
+                                st.image(image, use_container_width=True)
                             except Exception as e:
                                 st.error(f"Error opening {file_path}: {e}")
                         else:
                             st.error("No image found for the selected options.")
-else:
-    # Placeholder sections for Market and What If
-    if section == "Market":
-        st.sidebar.header("Market Options")
-        market_option = st.sidebar.selectbox("Select Market Option", ["Option A", "Option B", "Option C"])
-        st.write("## Market Section")
-        st.write(f"You selected: **{market_option}**")
-        st.write("Add your Market-related plots or data here.")
-    elif section == "What If":
-        st.sidebar.header("What If Options")
-        what_if_option = st.sidebar.selectbox("Select What If Scenario", ["Scenario 1", "Scenario 2", "Scenario 3"])
-        st.write("## What If Section")
-        st.write(f"You selected: **{what_if_option}**")
-        st.write("Add your What If scenario analysis or plots here.")
+
+# -----------------------------
+# Market Section (Placeholder)
+# -----------------------------
+elif section == "Market":
+    st.sidebar.header("Market Options")
+    market_option = st.sidebar.selectbox("Select Market Option", ["Option A", "Option B", "Option C"])
+    st.write("## Market Section")
+    st.write(f"You selected: **{market_option}**")
+    st.write("Add your Market-related plots or data here.")
+
+# -----------------------------
+# What If Section (Placeholder)
+# -----------------------------
+elif section == "What If":
+    st.sidebar.header("What If Options")
+    what_if_option = st.sidebar.selectbox("Select What If Scenario", ["Scenario 1", "Scenario 2", "Scenario 3"])
+    st.write("## What If Section")
+    st.write(f"You selected: **{what_if_option}**")
+    st.write("Add your What If scenario analysis or plots here.")
