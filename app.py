@@ -66,14 +66,15 @@ def build_quality_dicts(folder):
     """
     Reads image files (JPG or PNG) from the specified folder and separates them into two dictionaries:
     
-    base_dict: for images without a percentile
-      Expected filename format: State_District_Block_QualityParameter.png
-    perc_dict: for images with a percentile
-      Expected filename format: State_District_Block_QualityParameter_Percentile.png
+    base_dict: for images without a percentile (expected filename: State_District_Block_QualityParameter.png)
+    perc_dict: for images with a percentile (expected filename: State_District_Block_QualityParameter_Percentile.png)
+    
+    Returns:
+      (base_dict, perc_dict)
     
     Both dictionaries are structured as:
-      base_dict[state][district_block][quality_param] = file_path
-      perc_dict[state][district_block][quality_param][percentile] = file_path
+      base_dict[state][district-block][quality_param] = file_path
+      perc_dict[state][district-block][quality_param][percentile] = file_path
     """
     base_dict = {}
     perc_dict = {}
@@ -99,7 +100,7 @@ def build_quality_dicts(folder):
         block = parts[2]
         district_block = f"{district}-{block}"
         
-        # If exactly 4 parts, then it's a base image (no percentile)
+        # If exactly 4 parts, it's a base image
         if len(parts) == 4:
             quality_param = parts[3]
             base_dict.setdefault(state, {}).setdefault(district_block, {})[quality_param] = file_path
@@ -117,7 +118,7 @@ def build_quality_dicts(folder):
 # -----------------------------
 if section == "Meteorological Variable":
     st.sidebar.header("Meteorological Variable Options")
-    folder = "Meteorological Variables Monthly"  # Folder containing PNG files for meteorological variables
+    folder = "Meteorological Variables"  # Folder containing PNG files for meteorological variables
     file_dict = build_file_dict_from_folder(folder)
     
     if file_dict:
@@ -163,7 +164,6 @@ elif section == "Quality":
     if base_dict is None:
         st.info("No quality images available.")
     else:
-        # First dropdown: Select State
         state_options = sorted(base_dict.keys())
         state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
         
@@ -172,12 +172,44 @@ elif section == "Quality":
             district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
             
             if district_block_selected != "select":
-                # Dropdown for Quality Parameter (base image) - this shows images without percentile
+                # First dropdown: Quality Parameter (base image without percentile)
                 quality_params = sorted(base_dict[state_selected][district_block_selected].keys())
                 quality_param_selected = st.sidebar.selectbox("Select Quality Parameter", ["select", "All"] + quality_params)
                 
-                if quality_param_selected != "select":
-                    # If user selects "All", display all base quality images
+                # Show base image for quality parameter if available, if no percentile selection is made
+                show_base = True
+                
+                # Then, if percentile images exist for the selected quality parameter, show second dropdown
+                if quality_param_selected != "select" and quality_param_selected != "All":
+                    if perc_dict and state_selected in perc_dict and district_block_selected in perc_dict[state_selected] and quality_param_selected in perc_dict[state_selected][district_block_selected]:
+                        pct_dict = perc_dict[state_selected][district_block_selected][quality_param_selected]
+                        percentile_options = sorted(pct_dict.keys())
+                        formatted_options = ["select", "All"] + [f"At {opt} percentile" for opt in percentile_options]
+                        percentile_selected = st.sidebar.selectbox("Select True vs Predicted", formatted_options)
+                        
+                        if percentile_selected != "select":
+                            # If a specific percentile is chosen, override base image display
+                            show_base = False
+                            if percentile_selected == "All":
+                                for opt, file_path in pct_dict.items():
+                                    try:
+                                        image = Image.open(file_path)
+                                        st.image(image, use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Error opening {file_path}: {e}")
+                            else:
+                                raw_pct = percentile_selected.replace("At ", "").replace(" percentile", "").strip()
+                                file_path = pct_dict.get(raw_pct)
+                                if file_path:
+                                    try:
+                                        image = Image.open(file_path)
+                                        st.image(image, use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Error opening {file_path}: {e}")
+                                else:
+                                    st.error("No image found for the selected percentile.")
+                # If no percentile is selected (or quality parameter is "All"), show the base image(s)
+                if show_base:
                     if quality_param_selected == "All":
                         for param, file_path in base_dict[state_selected][district_block_selected].items():
                             try:
@@ -185,48 +217,16 @@ elif section == "Quality":
                                 st.image(image, use_container_width=True)
                             except Exception as e:
                                 st.error(f"Error opening {file_path}: {e}")
-                    else:
-                        # For a specific quality parameter, first display the base image (optional)
-                        # Uncomment the next lines if you want to display the base image
-                        # base_image_path = base_dict[state_selected][district_block_selected].get(quality_param_selected)
-                        # if base_image_path:
-                        #     try:
-                        #         image = Image.open(base_image_path)
-                        #         st.image(image, use_container_width=True)
-                        #     except Exception as e:
-                        #         st.error(f"Error opening base image {base_image_path}: {e}")
-                        
-                        # Then, provide a second dropdown to select True vs Predicted (i.e. the percentile)
-                        if perc_dict and state_selected in perc_dict and district_block_selected in perc_dict[state_selected] and quality_param_selected in perc_dict[state_selected][district_block_selected]:
-                            pct_dict = perc_dict[state_selected][district_block_selected][quality_param_selected]
-                            # Format dropdown options as "At 90th percentile"
-                            percentile_options = sorted(pct_dict.keys())
-                            formatted_options = ["select", "All"] + [f"At {opt} percentile" for opt in percentile_options]
-                            
-                            percentile_selected = st.sidebar.selectbox("Select True vs Predicted", formatted_options)
-                            
-                            if percentile_selected != "select":
-                                if percentile_selected == "All":
-                                    for opt, file_path in pct_dict.items():
-                                        try:
-                                            image = Image.open(file_path)
-                                            st.image(image, use_container_width=True)
-                                        except Exception as e:
-                                            st.error(f"Error opening {file_path}: {e}")
-                                else:
-                                    # Remove the "At " prefix and " percentile" suffix to get the raw percentile value
-                                    raw_pct = percentile_selected.replace("At ", "").replace(" percentile", "").strip()
-                                    file_path = pct_dict.get(raw_pct)
-                                    if file_path:
-                                        try:
-                                            image = Image.open(file_path)
-                                            st.image(image, use_container_width=True)
-                                        except Exception as e:
-                                            st.error(f"Error opening {file_path}: {e}")
-                                    else:
-                                        st.error("No image found for the selected percentile.")
+                    elif quality_param_selected != "select":
+                        base_image_path = base_dict[state_selected][district_block_selected].get(quality_param_selected)
+                        if base_image_path:
+                            try:
+                                image = Image.open(base_image_path)
+                                st.image(image, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error opening base image {base_image_path}: {e}")
                         else:
-                            st.info("No percentile images available for the selected quality parameter.")
+                            st.info("No base image available for the selected quality parameter.")
 
 # -----------------------------
 # Market Section (Placeholder)
