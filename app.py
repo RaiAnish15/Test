@@ -9,7 +9,7 @@ st.title("Smart Agri: Basmati Intelligence Portal")
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If", "Quality"], horizontal=True)
 
 # -----------------------------
-# Helper: Build file dictionary from PNG files (for Meteorological Variable)
+# Helper: Build file dictionary from PNG files (for Meteorological Variable and Market)
 # -----------------------------
 def build_file_dict_from_folder(folder):
     """
@@ -19,8 +19,8 @@ def build_file_dict_from_folder(folder):
     Expected filename formats:
       State_District_Block_Var.png  
       State_District_Block_Var_sinceYYYY.png
-
-    For example:
+      
+    Example:
       Haryana_Sirsa_Sirsa_Temp_since2010.png → variable label: "Temperature since 2010"
     """
     file_dict = {}
@@ -100,10 +100,11 @@ def build_quality_dicts(folder):
         block = parts[2]
         district_block = f"{district}-{block}"
         
-        # If exactly 4 parts, then it's a base image (no percentile)
+        # Base image: exactly 4 parts
         if len(parts) == 4:
             quality_param = parts[3]
             base_dict.setdefault(state, {}).setdefault(district_block, {})[quality_param] = file_path
+        # Percentile image: 5 or more parts
         elif len(parts) >= 5:
             quality_param = parts[3]
             percentile = parts[4]
@@ -176,7 +177,7 @@ elif section == "Quality":
                 quality_params = sorted(base_dict[state_selected][district_block_selected].keys())
                 quality_param_selected = st.sidebar.selectbox("Select Quality Parameter", ["select", "All"] + quality_params)
                 
-                # Default flag: show base image(s)
+                # Default: show base image unless a percentile is selected
                 show_base = True
                 
                 if quality_param_selected != "select" and quality_param_selected != "All":
@@ -235,14 +236,37 @@ elif section == "Quality":
                             st.info("No base image available for the selected quality parameter.")
 
 # -----------------------------
-# Market Section (Placeholder)
+# Market Section (Placeholder with additional dropdowns for Market parameters)
 # -----------------------------
 elif section == "Market":
     st.sidebar.header("Market Options")
-    market_option = st.sidebar.selectbox("Select Market Option", ["Option A", "Option B", "Option C"])
-    st.write("## Market Section")
-    st.write(f"You selected: **{market_option}**")
-    st.write("Add your Market-related plots or data here.")
+    # Build file dictionary from folder for Market images (similar to meteorological variables)
+    market_folder = "Market"  # Folder containing market images (e.g., Yield plots)
+    market_dict = build_file_dict_from_folder(market_folder)
+    
+    if market_dict:
+        state_options = sorted(list(market_dict.keys()))
+        state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
+        
+        if state_selected != "select":
+            district_block_options = sorted(list(market_dict[state_selected].keys()))
+            district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
+            
+            if district_block_selected != "select":
+                # Third dropdown: Market Parameter
+                market_params = sorted(list(market_dict[state_selected][district_block_selected].keys()))
+                market_param_selected = st.sidebar.selectbox("Select Market Parameter", ["select"] + market_params)
+                
+                if market_param_selected != "select":
+                    file_path = market_dict[state_selected][district_block_selected].get(market_param_selected)
+                    if file_path:
+                        try:
+                            image = Image.open(file_path)
+                            st.image(image, use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Error opening {file_path}: {e}")
+                    else:
+                        st.error("No image found for the selected market parameter.")
 
 # -----------------------------
 # What If Section (Placeholder)
