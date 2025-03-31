@@ -35,7 +35,8 @@ def build_file_dict_from_folder(folder):
 
     for filename in png_files:
         file_path = os.path.join(folder, filename)
-        parts = filename.split(".")[0].split("_")
+        base_filename = os.path.splitext(filename)[0]
+        parts = base_filename.split("_")
         if len(parts) < 4:
             st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
             continue
@@ -90,7 +91,8 @@ def build_quality_dicts(folder):
 
     for filename in quality_files:
         file_path = os.path.join(folder, filename)
-        parts = filename.split(".")[0].split("_")
+        base_filename = os.path.splitext(filename)[0]
+        parts = base_filename.split("_")
         if len(parts) < 4:
             st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
             continue
@@ -123,7 +125,9 @@ def build_file_dict_for_whatif(folder):
       { state: { "District-Block": { parameter: { scenario: file_path } } } }
       
     Expected filename format:
-      State_District_Block_Parameter_Scenario.png
+      State_District_Block_[ParameterParts]_Scenario.png
+      
+    All parts between the third and last are combined to form the parameter.
     """
     file_dict = {}
     if not os.path.exists(folder):
@@ -137,16 +141,18 @@ def build_file_dict_for_whatif(folder):
 
     for filename in png_files:
         file_path = os.path.join(folder, filename)
-        parts = filename.split(".")[0].split("_")
-        if len(parts) != 5:
-            st.warning(f"Filename '{filename}' does not have exactly 5 parts. Skipping.")
+        base_filename = os.path.splitext(filename)[0]
+        parts = base_filename.split("_")
+        if len(parts) < 5:
+            st.warning(f"Filename '{filename}' does not have at least 5 parts. Skipping.")
             continue
 
         state = parts[0]
         district = parts[1]
         block = parts[2]
-        parameter = parts[3]
-        scenario = parts[4]
+        # Combine parts between index 3 and the last into the parameter
+        parameter = "_".join(parts[3:-1])
+        scenario = parts[-1]
         district_block = f"{district}-{block}"
         file_dict.setdefault(state, {}).setdefault(district_block, {}).setdefault(parameter, {})[scenario] = file_path
 
