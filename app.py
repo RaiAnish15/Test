@@ -5,7 +5,7 @@ import os
 st.set_page_config(page_title="Smart Agri: Basmati Intelligence Portal", layout="wide")
 st.title("Smart Agri: Basmati Intelligence Portal")
 
-# Top-level section selection including "Quality"
+# Top-level section selection including "Quality" and "What If"
 section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If", "Quality"], horizontal=True)
 
 # -----------------------------
@@ -27,12 +27,12 @@ def build_file_dict_from_folder(folder):
     if not os.path.exists(folder):
         st.error(f"Folder '{folder}' not found.")
         return None
-    
+
     png_files = [f for f in os.listdir(folder) if f.endswith(".png")]
     if not png_files:
         st.error(f"No PNG files found in the folder '{folder}'.")
         return None
-    
+
     for filename in png_files:
         file_path = os.path.join(folder, filename)
         parts = filename.split(".")[0].split("_")
@@ -100,19 +100,67 @@ def build_quality_dicts(folder):
         block = parts[2]
         district_block = f"{district}-{block}"
         
-        # Base image: exactly 4 parts
+        # Base image: exactly 4 parts (no percentile)
         if len(parts) == 4:
             quality_param = parts[3]
             base_dict.setdefault(state, {}).setdefault(district_block, {})[quality_param] = file_path
-        # Percentile image: 5 or more parts
-        elif len(parts) >= 5:
+        # What If images: expected 6 parts: State_District_Block_Parameter_Scenario_Percentile.png
+        elif len(parts) >= 6:
             quality_param = parts[3]
-            percentile = parts[4]
-            perc_dict.setdefault(state, {}).setdefault(district_block, {}).setdefault(quality_param, {})[percentile] = file_path
+            scenario = parts[4]
+            # We'll store the full scenario string (e.g., "SSP245") as the key.
+            # We ignore the percentile in the key (or you can store it if needed).
+            percentile = parts[5]
+            # We'll combine scenario and percentile as a display string if needed.
+            # For our dropdown, we'll use scenario only.
+            perc_dict.setdefault(state, {}).setdefault(district_block, {}).setdefault(quality_param, {})[scenario] = file_path
         else:
             st.warning(f"Filename '{filename}' is not in an expected format. Skipping.")
     
     return base_dict, perc_dict
+
+# -----------------------------
+# Helper: Build What If dictionary from image files (for What If section)
+# -----------------------------
+def build_what_if_dict(folder):
+    """
+    Reads PNG files from the specified folder and parses their filenames into a nested dict for What If plots.
+    Expected filename format:
+      State_District_Block_Parameter_Scenario_Percentile.png
+      
+    Returns:
+      what_if_dict[state][district_block][parameter][scenario] = file_path
+      
+    (Assuming one file per combination)
+    """
+    what_if_dict = {}
+    if not os.path.exists(folder):
+        st.error(f"Folder '{folder}' not found.")
+        return None
+    
+    png_files = [f for f in os.listdir(folder) if f.endswith(".png")]
+    if not png_files:
+        st.error(f"No PNG files found in the folder '{folder}'.")
+        return None
+    
+    for filename in png_files:
+        file_path = os.path.join(folder, filename)
+        parts = filename.split(".")[0].split("_")
+        if len(parts) < 6:
+            st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
+            continue
+        
+        state = parts[0]
+        district = parts[1]
+        block = parts[2]
+        district_block = f"{district}-{block}"
+        parameter = parts[3]
+        scenario = parts[4]
+        # You could also store percentile if needed, but for dropdown we use scenario.
+        
+        what_if_dict.setdefault(state, {}).setdefault(district_block, {}).setdefault(parameter, {})[scenario] = file_path
+    
+    return what_if_dict
 
 # -----------------------------
 # Meteorological Variable Section using local folder files
@@ -155,6 +203,55 @@ if section == "Meteorological Variable":
                             st.error("No image found for the selected options.")
 
 # -----------------------------
+# What If Section using local folder files
+# -----------------------------
+elif section == "What If":
+    st.sidebar.header("What If Options")
+    folder = "What If"  # Folder containing What If images
+    what_if_dict = build_what_if_dict(folder)
+    
+    if what_if_dict:
+        state_options = sorted(what_if_dict.keys())
+        state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
+        
+        if state_selected != "select":
+            district_block_options = sorted(what_if_dict[state_selected].keys())
+            district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
+            
+            if district_block_selected != "select":
+                parameters = sorted(what_if_dict[state_selected][district_block_selected].keys())
+                parameter_selected = st.sidebar.selectbox("Select Parameter", ["select", "All"] + parameters)
+                
+                if parameter_selected != "select":
+                    if parameter_selected == "All":
+                        # Display all What If images for the selected group
+                        for param, scenario_dict in what_if_dict[state_selected][district_block_selected].items():
+                            for scenario, file_path in scenario_dict.items():
+                                try:
+                                    image = Image.open(file_path)
+                                    st.image(image, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Error opening {file_path}: {e}")
+                    else:
+                        scenario_dict = what_if_dict[state_selected][district_block_selected].get(parameter_selected)
+                        if scenario_dict:
+                            scenario_options = sorted(scenario_dict.keys())
+                            scenario_selected = st.sidebar.selectbox("Select Scenario", ["select"] + scenario_options)
+                            
+                            if scenario_selected != "select":
+                                file_path = scenario_dict.get(scenario_selected)
+                                if file_path:
+                                    try:
+                                        image = Image.open(file_path)
+                                        st.image(image, use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Error opening {file_path}: {e}")
+                                else:
+                                    st.error("No image found for the selected scenario.")
+                        else:
+                            st.info("No What If images available for the selected parameter.")
+
+# -----------------------------
 # Quality Section using local image files
 # -----------------------------
 elif section == "Quality":
@@ -173,15 +270,13 @@ elif section == "Quality":
             district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
             
             if district_block_selected != "select":
-                # First dropdown: Quality Parameter (base image without percentile)
                 quality_params = sorted(base_dict[state_selected][district_block_selected].keys())
                 quality_param_selected = st.sidebar.selectbox("Select Quality Parameter", ["select", "All"] + quality_params)
                 
-                # Default: show base image unless a percentile is selected
+                # Default: show base image(s)
                 show_base = True
                 
                 if quality_param_selected != "select" and quality_param_selected != "All":
-                    # Check if percentile images exist for the selected quality parameter.
                     if (perc_dict and 
                         state_selected in perc_dict and 
                         district_block_selected in perc_dict[state_selected] and 
@@ -192,7 +287,6 @@ elif section == "Quality":
                         percentile_selected = st.sidebar.selectbox("Select True vs Predicted", formatted_options)
                         
                         if percentile_selected != "select":
-                            # When a specific percentile is chosen, hide base image.
                             show_base = False
                             if percentile_selected == "All":
                                 for opt, file_path in pct_dict.items():
@@ -215,7 +309,6 @@ elif section == "Quality":
                     else:
                         st.info("No percentile images available for the selected quality parameter.")
                 
-                # If no percentile selection is made, display the base image(s)
                 if show_base:
                     if quality_param_selected == "All":
                         for param, file_path in base_dict[state_selected][district_block_selected].items():
@@ -236,11 +329,10 @@ elif section == "Quality":
                             st.info("No base image available for the selected quality parameter.")
 
 # -----------------------------
-# Market Section (Placeholder with additional dropdowns for Market parameters)
+# Market Section with additional dropdowns for Market parameters
 # -----------------------------
 elif section == "Market":
     st.sidebar.header("Market Options")
-    # Build file dictionary from folder for Market images (similar to meteorological variables)
     market_folder = "Market"  # Folder containing market images (e.g., Yield plots)
     market_dict = build_file_dict_from_folder(market_folder)
     
@@ -253,7 +345,6 @@ elif section == "Market":
             district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
             
             if district_block_selected != "select":
-                # Third dropdown: Market Parameter
                 market_params = sorted(list(market_dict[state_selected][district_block_selected].keys()))
                 market_param_selected = st.sidebar.selectbox("Select Market Parameter", ["select"] + market_params)
                 
@@ -269,11 +360,91 @@ elif section == "Market":
                         st.error("No image found for the selected market parameter.")
 
 # -----------------------------
-# What If Section (Placeholder)
+# What If Section using local folder files
 # -----------------------------
 elif section == "What If":
     st.sidebar.header("What If Options")
-    what_if_option = st.sidebar.selectbox("Select What If Scenario", ["Scenario 1", "Scenario 2", "Scenario 3"])
-    st.write("## What If Section")
-    st.write(f"You selected: **{what_if_option}**")
-    st.write("Add your What If scenario analysis or plots here.")
+    what_if_folder = "What If"  # Folder containing What If images
+    def build_what_if_dict(folder):
+        """
+        Reads PNG files from the specified folder and parses their filenames into a nested dict:
+          { state: { "District-Block": { parameter: { scenario: file_path } } } }
+        Expected filename format:
+          State_District_Block_Parameter_Scenario_Percentile.png
+        For example:
+          Haryana_Sonipat_Gohana_Chalkiness_SSP245_50th.png
+        """
+        what_if_dict = {}
+        if not os.path.exists(folder):
+            st.error(f"Folder '{folder}' not found.")
+            return None
+        
+        png_files = [f for f in os.listdir(folder) if f.endswith(".png")]
+        if not png_files:
+            st.error(f"No PNG files found in the folder '{folder}'.")
+            return None
+        
+        for filename in png_files:
+            file_path = os.path.join(folder, filename)
+            parts = filename.split(".")[0].split("_")
+            if len(parts) < 6:
+                st.warning(f"Filename '{filename}' does not have enough parts. Skipping.")
+                continue
+            
+            state = parts[0]
+            district = parts[1]
+            block = parts[2]
+            district_block = f"{district}-{block}"
+            parameter = parts[3]
+            scenario = parts[4]
+            # We ignore percentile here (assuming one file per combination)
+            
+            what_if_dict.setdefault(state, {}).setdefault(district_block, {}).setdefault(parameter, {})[scenario] = file_path
+        
+        return what_if_dict
+    
+    what_if_dict = build_what_if_dict(what_if_folder)
+    
+    if what_if_dict:
+        state_options = sorted(what_if_dict.keys())
+        state_selected = st.sidebar.selectbox("Select State", ["select"] + state_options)
+        
+        if state_selected != "select":
+            district_block_options = sorted(what_if_dict[state_selected].keys())
+            district_block_selected = st.sidebar.selectbox("Select District-Block", ["select"] + district_block_options)
+            
+            if district_block_selected != "select":
+                parameters = sorted(what_if_dict[state_selected][district_block_selected].keys())
+                parameter_selected = st.sidebar.selectbox("Select Parameter", ["select", "All"] + parameters)
+                
+                if parameter_selected != "select":
+                    if parameter_selected == "All":
+                        for param, scenario_dict in what_if_dict[state_selected][district_block_selected].items():
+                            for scenario, file_path in scenario_dict.items():
+                                try:
+                                    image = Image.open(file_path)
+                                    st.image(image, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Error opening {file_path}: {e}")
+                    else:
+                        scenario_dict = what_if_dict[state_selected][district_block_selected].get(parameter_selected)
+                        if scenario_dict:
+                            scenario_options = sorted(scenario_dict.keys())
+                            scenario_selected = st.sidebar.selectbox("Select Scenario", ["select"] + scenario_options)
+                            
+                            if scenario_selected != "select":
+                                file_path = scenario_dict.get(scenario_selected)
+                                if file_path:
+                                    try:
+                                        image = Image.open(file_path)
+                                        st.image(image, use_container_width=True)
+                                    except Exception as e:
+                                        st.error(f"Error opening {file_path}: {e}")
+                                else:
+                                    st.error("No image found for the selected scenario.")
+                        else:
+                            st.info("No What If images available for the selected parameter.")
+
+# -----------------------------
+# End of Sections
+# -----------------------------
