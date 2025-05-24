@@ -6,7 +6,7 @@ st.set_page_config(page_title="Smart Agri: Basmati Intelligence Portal", layout=
 st.title("Smart Agri: Basmati Intelligence Portal")
 
 # Top-level section selection including "Quality"
-section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If", "Quality"], horizontal=False)
+section = st.radio("Select Section", options=["Meteorological Variable", "Market", "What If", "Quality"], horizontal=True)
 
 # -----------------------------
 # Helper: Build file dictionary from PNG files (for Meteorological Variable and Market)
