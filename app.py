@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 import os
 
-st.set_page_config(page_title="Smart Agri: Basmati Intelligence Portal", layout="wide")
+st.set_page_config(page_title="Smarttt Agri: Basmati Intelligence Portal", layout="wide")
 st.title("Agri: Basmati Intelligence Portal")
 
 # Top-level section selection including "Quality"
